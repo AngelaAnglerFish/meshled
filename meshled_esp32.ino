@@ -1,5 +1,5 @@
 // Disable interrupts allowing longer led strips without flicker.  Mesh still settles nearly as fast
-#define FASTLED_ALLOW_INTERRUPTS 0
+//#define FASTLED_ALLOW_INTERRUPTS 0
 
 #include "FastLED.h"
 
@@ -9,7 +9,7 @@ FASTLED_USING_NAMESPACE
 // #warning "Requires FastLED 3.1 or later; check github for latest code."
 // #endif
 
-#define NUM_STRIPS 1
+#define NUM_STRIPS 6
 #define NUM_LEDS_PER_STRIP 60
 #define NUM_LEDS NUM_LEDS_PER_STRIP * NUM_STRIPS
 CRGB leds[NUM_STRIPS * NUM_LEDS_PER_STRIP];
@@ -28,6 +28,16 @@ bool amController = false;  // flag to designate that this CPU is the current co
 
 painlessMesh  mesh;
 
+// The main loop by default runs on core 1, we will run the painlessMesh
+// on core 0 (along with the default systems things)
+// forward declare core 0 "mainloop"
+void coreTask( void * pvParameters ){
+    while(true){
+      mesh.update();
+      delay(100);
+    }
+
+}
 
 //Forward Declare Led Functions
 void nextPattern();
@@ -118,22 +128,22 @@ void setup() {
   delay(3000); // 3 second delay for recovery
 
   // tell FastLED there's 60 NEOPIXEL leds on pin 3, starting at index 0 in the led array
-  FastLED.addLeds<NEOPIXEL, D3>(leds, 0, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
+  FastLED.addLeds<NEOPIXEL, 13>(leds, 0, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
 
-  // // tell FastLED there's 60 NEOPIXEL leds on pin 11, starting at index 60 in the led array
-  // FastLED.addLeds<NEOPIXEL, 4>(leds, NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
-  //
-  // // tell FastLED there's 60 NEOPIXEL leds on pin 5, starting at index 120 in the led array
-  // FastLED.addLeds<NEOPIXEL, 5>(leds, 2 * NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
-  //
-  // // tell FastLED there's 60 NEOPIXEL leds on pin 6, starting at index 180 in the led array
-  // FastLED.addLeds<NEOPIXEL, 6>(leds, 3 * NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
-  //
-  // // tell FastLED there's 60 NEOPIXEL leds on pin 6, starting at index 180 in the led array
-  // FastLED.addLeds<NEOPIXEL, 23>(leds, 4 * NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
-  //
-  // // tell FastLED there's 60 NEOPIXEL leds on pin 6, starting at index 180 in the led array
-  // FastLED.addLeds<NEOPIXEL, 22>(leds, 5 * NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
+  // tell FastLED there's 60 NEOPIXEL leds on pin 11, starting at index 60 in the led array
+  FastLED.addLeds<NEOPIXEL, 15>(leds, NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
+ 
+  // tell FastLED there's 60 NEOPIXEL leds on pin 5, starting at index 120 in the led array
+  FastLED.addLeds<NEOPIXEL, 2>(leds, 2 * NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
+  
+  // tell FastLED there's 60 NEOPIXEL leds on pin 6, starting at index 180 in the led array
+  FastLED.addLeds<NEOPIXEL, 0>(leds, 3 * NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
+  
+  // tell FastLED there's 60 NEOPIXEL leds on pin 6, starting at index 180 in the led array
+  FastLED.addLeds<NEOPIXEL, 4>(leds, 4 * NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
+  
+  // tell FastLED there's 60 NEOPIXEL leds on pin 6, starting at index 180 in the led array
+  FastLED.addLeds<NEOPIXEL, 16>(leds, 5 * NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
   //
   // // tell FastLED there's 60 NEOPIXEL leds on pin 6, starting at index 180 in the led array
   // FastLED.addLeds<NEOPIXEL, 21>(leds, 6 * NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP).setCorrection(TypicalLEDStrip);
@@ -161,12 +171,22 @@ void setup() {
   // make this one the controller if there are no others on the mesh
   if (mesh.getNodeList().size() == 0) amController = true;
 
+  // setup the core 0 loop task
+  xTaskCreatePinnedToCore(
+                  coreTask,   /* Function to implement the task */
+                  "coreTask", /* Name of the task */
+                  10000,      /* Stack size in words */
+                  NULL,       /* Task input parameter */
+                  0,          /* Priority of the task */
+                  NULL,       /* Task handle. */
+                  0);  /* Core where the task should run */
+
 }
 
 
 void loop()
 {
-  mesh.update();
+ // mesh.update();
   // Call the current pattern function once, updating the 'leds' array
   gPlaylist[gCurrentTrackNumber].mPattern();
 
